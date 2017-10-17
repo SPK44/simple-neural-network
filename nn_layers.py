@@ -25,6 +25,7 @@ class hidden_layer:
         self.prev_layer = prev_layer
         self.activation_f = activation_f
         self.w = 0.01 * np.random.randn(prev_layer.get_shape()[0], nodes)
+        self.s = np.empty((nodes + 1,prev_layer.get_shape()[1]))
         
     def forward_prop(self):
         """ This will push the signals forward"""
@@ -37,6 +38,8 @@ class hidden_layer:
         
     def set_prev(self, prev_layer):
         self.prev_layer = prev_layer
+        self.w = 0.01 * np.random.randn(prev_layer.get_shape()[0], self.nodes)
+        self.s = np.empty((self.nodes + 1,prev_layer.get_shape()[1]))
         
     def get_signal(self):
         return self.s
@@ -44,7 +47,7 @@ class hidden_layer:
     def get_shape(self):
         return self.s.shape
     
-    def get_weights():
+    def get_weights(self):
         return self.w
     
 class output_layer:
@@ -53,6 +56,7 @@ class output_layer:
         self.nodes = nodes
         self.prev_layer = prev_layer
         self.activation_f = activation_f
+        
         self.w = 0.01 * np.random.randn(prev_layer.get_shape()[0], nodes)
         self.s = np.empty((nodes,prev_layer.get_shape()[1]))
         
@@ -61,8 +65,13 @@ class output_layer:
         self.x = np.dot((self.w).T,self.prev_layer.get_signal())
         self.s = self.activation_f(self.x)
         
+  
+        
+        
     def set_prev(self, prev_layer):
         self.prev_layer = prev_layer
+        self.w = 0.01 * np.random.randn(prev_layer.get_shape()[0], self.nodes)
+        self.s = np.empty((self.nodes,prev_layer.get_shape()[1]))
         
     def get_signal(self):
         return self.s
@@ -70,5 +79,5 @@ class output_layer:
     def get_shape(self):
         return self.s.shape
     
-    def get_weights():
+    def get_weights(self):
         return self.w
