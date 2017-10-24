@@ -10,6 +10,12 @@ class input_layer:
         bias = np.full((examples, 1),1)
         self.x = (np.concatenate((bias, inX), axis=1)).T
         self.s = self.x
+        
+    def set_input(self,inX):
+        examples = inX.shape[0]
+        bias = np.full((examples, 1),1)
+        self.x = (np.concatenate((bias, inX), axis=1)).T
+        self.s = self.x
 
     def get_signal(self):
         return self.s

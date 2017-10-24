@@ -31,6 +31,8 @@ class nn:
     def __init__(self, inputData, outData, output_nodes=None, output_f=softmax, loss_f=cross_entropy_loss, d_loss_f=d_cross_entropy_loss, regularization_f=l2_regular, d_regularization_f=d_l2_regular):
         self.loss = -1 # Not Possible
         self.epoch = 0
+        self.full_outData = outData
+        self.full_inputData = inputData
         self.outData = outData
         
         # default values, use train to modify
@@ -55,14 +57,29 @@ class nn:
         self.layers_list[-1].set_prev(hiddenl)
         self.layers_list.insert(-1,hiddenl)
         
-    def train(self, epochs, learning_rate, reg_lambd):
+    def train(self, epochs, learning_rate, reg_lambd, batch=0):
+        
+        examples = self.full_outData.shape[0]
+        
+        if(batch == 0):
+            batch = examples #whole batch
+            
+        all_ex = np.arange(examples)
+        np.random.shuffle(all_ex)
+        ex_to_use = all_ex[:batch]
+        batchx = self.full_inputData[ex_to_use]
+        batchy = self.full_outData[ex_to_use]
+
+        self.layers_list[0].set_input(batchx)
+        self.outData = batchy
+        
         self.learning_rate = learning_rate
         self.reg_lambd = reg_lambd
         
         for epoch in range(epochs):
             self.forward_prop()
             self.backward_prop()
-            if (self.epoch % 100 == 0):
+            if (self.epoch % (epochs/50) == 0):
                 print("Loss for epoch {} is {}".format(self.epoch, self.get_loss()))
             self.epoch += 1
         
