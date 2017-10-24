@@ -57,8 +57,7 @@ class nn:
         self.layers_list[-1].set_prev(hiddenl)
         self.layers_list.insert(-1,hiddenl)
         
-    def train(self, epochs, learning_rate, reg_lambd, batch=0):
-        
+    def set_mini_batch(self, batch):
         examples = self.full_outData.shape[0]
         
         if(batch == 0):
@@ -73,15 +72,50 @@ class nn:
         self.layers_list[0].set_input(batchx)
         self.outData = batchy
         
+    def train(self, epochs, learning_rate, reg_lambd, batch=0):
+        
         self.learning_rate = learning_rate
         self.reg_lambd = reg_lambd
         
         for epoch in range(epochs):
+            self.set_mini_batch(batch)
             self.forward_prop()
             self.backward_prop()
-            if (self.epoch % (epochs/50) == 0):
+            if (self.epoch % (epochs/20) == 0):
                 print("Loss for epoch {} is {}".format(self.epoch, self.get_loss()))
             self.epoch += 1
+            
+    def test(self, testData):
+        self.layers_list[0].set_input(testData)
+        self.forward_prop()
+        
+    def k_fold_cross_validation(self,k=7, batch=1):
+        examples = self.full_outData.shape[0]
+            
+        fold_size = examples // k
+        last_fold_size = examples - fold_size * (k-1)
+        fold_size_list = []
+        
+        for i in range(k-1):
+            fold_size_list.append(fold_size)
+        fold_size_list.append(last_fold_size)
+        
+        all_ex = np.arange(examples)
+        np.random.shuffle(all_ex)
+        
+        start = 0
+        end = fold_size
+        folds = []
+        
+        for i in range(k):
+            folds.append(all_ex[start:end])
+            start += fold_size_list[k]
+            end += fold_size_list[k]
+            
+        for i in range(k):
+            ex_to_use = all_ex[folds[i]][:batch]
+            batchx = self.full_inputData[ex_to_use]
+            batchy = self.full_outData[ex_to_use]       
         
     def forward_prop(self):
         for i in self.layers_list[1:]:
@@ -104,26 +138,18 @@ class nn:
         reg_loss = sum([self.regularization_f(i.get_weights(),self.reg_lambd) for i in self.layers_list[1:]])
         self.loss = data_loss + reg_loss
         return self.loss
-    
-    def log_loss(self):
-        loss = 0
-        counter = 0
-        for i in self.outData:
-            loss += math.log(self.get_output()[i][counter])
-            counter += 1
-        return loss / -self.get_output().shape[1]
             
     def get_weights(self):
         weight_list = []
         for i in self.layers_list[1:]:
             weight_list.append(i.get_weights())
         return weight_list
-            
-    def get_output(self):
-        return self.layers_list[-1].get_signal()
     
     def get_signals(self):
         signal_list = []
         for i in self.layers_list:
             signal_list.append(i.get_signal())
         return signal_list
+        
+    def get_output(self):
+        return self.layers_list[-1].get_signal()
