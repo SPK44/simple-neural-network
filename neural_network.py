@@ -9,8 +9,8 @@ def softmax(x):
 
 def cross_entropy_loss(x,y):
     num_examples = x.shape[1]
-    correct_logprobs = -np.log(x[y, range(num_examples)])
-    return np.sum(correct_logprobs)/num_examples
+    correct_logprobs = np.log(x[y, range(num_examples)])
+    return -np.sum(correct_logprobs)/num_examples
 
 def l2_regular(w,lambd):
     return 0.5*lambd*np.sum(w*w)
@@ -57,17 +57,15 @@ class nn:
         self.layers_list[-1].set_prev(hiddenl)
         self.layers_list.insert(-1,hiddenl)
         
-    def set_mini_batch(self, batch):
-        examples = self.full_outData.shape[0]
+    def set_mini_batch(self,inD,outD, batch):
+        examples = outD.shape[0]
         
         if(batch == 0):
             batch = examples #whole batch
             
-        all_ex = np.arange(examples)
-        np.random.shuffle(all_ex)
-        ex_to_use = all_ex[:batch]
-        batchx = self.full_inputData[ex_to_use]
-        batchy = self.full_outData[ex_to_use]
+        ex_to_use = np.random.choice(examples, batch, replace=False)
+        batchx = inD[ex_to_use]
+        batchy = outD[ex_to_use]
 
         self.layers_list[0].set_input(batchx)
         self.outData = batchy
@@ -78,18 +76,18 @@ class nn:
         self.reg_lambd = reg_lambd
         
         for epoch in range(epochs):
-            self.set_mini_batch(batch)
+            self.set_mini_batch(self.full_inputData,self.full_outData, batch)
             self.forward_prop()
             self.backward_prop()
             if (self.epoch % (epochs/20) == 0):
-                print("Loss for epoch {} is {}".format(self.epoch, self.get_loss()))
+                print("Loss for epoch {} is {}".format(self.epoch, self.get_full_loss()))
             self.epoch += 1
             
     def test(self, testData):
         self.layers_list[0].set_input(testData)
         self.forward_prop()
         
-    def k_fold_cross_validation(self,k=7, batch=1):
+    def k_fold_cross_validation(self, epochs, learning_rate, reg_lambd, k=7, batch=1):
         examples = self.full_outData.shape[0]
             
         fold_size = examples // k
@@ -99,23 +97,48 @@ class nn:
         for i in range(k-1):
             fold_size_list.append(fold_size)
         fold_size_list.append(last_fold_size)
-        
+                
         all_ex = np.arange(examples)
         np.random.shuffle(all_ex)
         
         start = 0
         end = fold_size
-        folds = []
+        
+        self.learning_rate = learning_rate
+        self.reg_lambd = reg_lambd
+        
+        sumL = 0
         
         for i in range(k):
-            folds.append(all_ex[start:end])
-            start += fold_size_list[k]
-            end += fold_size_list[k]
+            self.clear_weights()
             
-        for i in range(k):
-            ex_to_use = all_ex[folds[i]][:batch]
-            batchx = self.full_inputData[ex_to_use]
-            batchy = self.full_outData[ex_to_use]       
+            test_data = all_ex[start:end]
+            not_test_data = np.in1d(np.arange(len(all_ex)),test_data,assume_unique=True,invert=True)
+            batchx = self.full_inputData[not_test_data]
+            batchy = self.full_outData[not_test_data]
+
+            self.epoch = 0
+            
+            for j in range(epochs):
+                self.set_mini_batch(batchx,batchy, batch)
+                self.forward_prop()
+                self.backward_prop()
+                self.epoch += 1
+            
+            self.outData = batchy
+            self.test(batchx)
+            tLoss = self.get_loss()
+                
+            self.outData = self.full_outData[test_data]
+            self.test(self.full_inputData[test_data])    
+            sumL += self.get_loss()
+            print("Test Loss for Fold {} is {} :: Training Loss for Fold {} is {}".format(i,self.get_loss(),i,tLoss))
+            
+            start += fold_size_list[i]
+            end += fold_size_list[i]
+            
+        return sumL / k
+            
         
     def forward_prop(self):
         for i in self.layers_list[1:]:
@@ -131,13 +154,22 @@ class nn:
             prev_weights = i.get_weights()
             
         for i in self.layers_list[1:]:
-            i.update_weights(self.learning_rate, self.d_regularization_f(self.reg_lambd, i.get_weights()))        
+            i.update_weights(self.learning_rate, self.d_regularization_f(self.reg_lambd, i.get_weights()))      
+            
+    def clear_weights(self):
+        for i in self.layers_list[1:]:
+            i.reinit_weights()
         
     def get_loss(self):
         data_loss = self.loss_f(self.get_output(),self.outData)
         reg_loss = sum([self.regularization_f(i.get_weights(),self.reg_lambd) for i in self.layers_list[1:]])
         self.loss = data_loss + reg_loss
         return self.loss
+    
+    def get_full_loss(self):
+        self.outData = self.full_outData
+        self.test(self.full_inputData)
+        return self.get_loss()
             
     def get_weights(self):
         weight_list = []

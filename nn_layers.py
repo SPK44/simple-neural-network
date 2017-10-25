@@ -53,6 +53,9 @@ class hidden_layer:
     def update_weights(self, rate, reg_term):
         self.w = self.w - rate*np.dot(self.prev_layer.get_signal(), self.d[1:].T) + reg_term
         
+    def reinit_weights(self):
+        self.w = 0.01 * np.random.randn(self.prev_layer.get_shape()[0], self.nodes)
+        
     def calc_delta(self, prev_deltas, prev_weights):
         self.d = self.d_activation_f(self.s) * np.dot(prev_weights, prev_deltas)
         return self.d[1:]
@@ -89,6 +92,9 @@ class output_layer:
         
     def update_weights(self, rate, reg_term):
         self.w = self.w - rate*np.dot(self.prev_layer.get_signal(), self.d.T) + reg_term
+        
+    def reinit_weights(self):
+        self.w = 0.01 * np.random.randn(self.prev_layer.get_shape()[0], self.nodes)
         
     def set_delta(self, new_d):
         self.d = new_d
